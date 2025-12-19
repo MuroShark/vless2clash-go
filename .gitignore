@@ -1,0 +1,12 @@
+# Binaries
+vless2clash
+vless2clash.exe
+
+# Output files
+vless_generated.yaml
+
+# User config (if created locally)
+settings.json
+
+# System files
+.DS_Store
