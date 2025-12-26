@@ -40,6 +40,12 @@ type Proxy struct {
 	Flow              string
 	ClientFingerprint string
 	ServerName        string
+	PublicKey         string
+	ShortID           string
+	Path              string
+	Host              string
+	ServiceName       string
+	ALPN              []string
 }
 
 // Шаблон для вывода (Здесь мы настраиваем внешний вид YAML)
@@ -61,22 +67,60 @@ proxies:
     network: {{ .Network }}
     tls: {{ .TLS }}
     udp: {{ .UDP }}
+{{- if .Flow }}
     flow: {{ .Flow }}
+{{- end }}
+{{- if .ServerName }}
     servername: {{ .ServerName }}
+{{- end }}
     client-fingerprint: {{ .ClientFingerprint }}
+{{- if .ALPN }}
+    alpn:
+{{- range .ALPN }}
+      - {{ . }}
+{{- end }}
+{{- end }}
+{{- if .PublicKey }}
+    reality-opts:
+      public-key: {{ .PublicKey }}
+      short-id: {{ .ShortID }}
+{{- end }}
+{{- if eq .Network "ws" }}
+    ws-opts:
+      path: {{ .Path }}
+{{- if .Host }}
+      headers:
+        Host: {{ .Host }}
+{{- end }}
+{{- end }}
+{{- if eq .Network "grpc" }}
+    grpc-opts:
+      grpc-service-name: {{ .ServiceName }}
+{{- end }}
 {{- end }}
 
 proxy-groups:
-  - name: Proxy
+  - name: 🚀 Proxy
     type: select
     proxies:
+      - ⚡ Auto Select
 {{- range . }}
       - "{{ .Name }}"
 {{- end }}
       - DIRECT
 
+  - name: ⚡ Auto Select
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies:
+{{- range . }}
+      - "{{ .Name }}"
+{{- end }}
+
 rules:
-  - MATCH,Proxy
+  - MATCH,🚀 Proxy
 `
 
 // Конфигурация приложения
@@ -336,6 +380,14 @@ func ParseVless(link string) (Proxy, error) {
 
 	query := u.Query()
 	decodedName := cleanName(u.Fragment)
+	if decodedName == "" {
+		decodedName = u.Hostname()
+	}
+
+	var alpn []string
+	if val := query.Get("alpn"); val != "" {
+		alpn = strings.Split(val, ",")
+	}
 
 	p := Proxy{
 		Name:              decodedName,
@@ -349,6 +401,12 @@ func ParseVless(link string) (Proxy, error) {
 		ClientFingerprint: query.Get("fp"),
 		ServerName:        query.Get("sni"),
 		Flow:              query.Get("flow"),
+		PublicKey:         query.Get("pbk"),
+		ShortID:           query.Get("sid"),
+		Path:              query.Get("path"),
+		Host:              query.Get("host"),
+		ServiceName:       query.Get("serviceName"),
+		ALPN:              alpn,
 	}
 
 	return p, nil
